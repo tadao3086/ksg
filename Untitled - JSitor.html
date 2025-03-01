@@ -1,0 +1,270 @@
+<!doctype html><html><head></head><body><!DOCTYPE html>
+<html lang="ja">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>スライドパズル</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			height: 100vh;
+			margin: 0;
+			background-color: #f0f0f0;
+		}
+
+		.container {
+			text-align: center;
+		}
+
+		.puzzle-container {
+			display: grid;
+			grid-template-columns: repeat(3, 100px);
+			grid-template-rows: repeat(3, 100px);
+			gap: 2px;
+			margin: 20px auto;
+			position: relative;
+		}
+
+		.tile {
+			width: 100px;
+			height: 100px;
+			background-size: 300px 300px;
+			cursor: pointer;
+			transition: transform 0.3s ease;
+		}
+
+		.tile:hover {
+			transform: scale(1.05);
+		}
+
+		.empty {
+			background-color: #ccc;
+		}
+
+		.info {
+			margin: 10px 0;
+			font-size: 18px;
+		}
+
+		.buttons {
+			margin: 20px 0;
+		}
+
+		.button {
+			padding: 10px 20px;
+			margin: 0 10px;
+			font-size: 16px;
+			cursor: pointer;
+			border: none;
+			border-radius: 5px;
+			background-color: #007bff;
+			color: white;
+			transition: background-color 0.3s;
+		}
+
+		.button:hover {
+			background-color: #0056b3;
+		}
+
+		#upload-link {
+			display: inline-block;
+			margin: 10px 0;
+			padding: 10px 20px;
+			background-color: #28a745;
+			color: white;
+			text-decoration: none;
+			border-radius: 5px;
+			transition: background-color 0.3s;
+		}
+
+		#upload-link:hover {
+			background-color: #218838;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<h1>スライドパズル</h1>
+		<div class="info">
+			<span>移動回数: <span id="moves">0</span></span>
+			<span>経過時間: <span id="time">0</span>秒</span>
+		</div>
+		<div class="puzzle-container" id="puzzle"></div>
+		<div class="buttons">
+			<button class="button" id="start">スタート</button>
+			<button class="button" id="pause">ポーズ</button>
+			<button class="button" id="reset">リセット</button>
+		</div>
+		<a href="#" id="upload-link">画像を選択</a>
+		<input type="file" id="image-upload" accept="image/*" style="display: none;">
+    </div>
+
+		<script>
+			const puzzleContainer = document.getElementById('puzzle');
+        const movesDisplay = document.getElementById('moves');
+        const timeDisplay = document.getElementById('time');
+        const startButton = document.getElementById('start');
+        const pauseButton = document.getElementById('pause');
+        const resetButton = document.getElementById('reset');
+        const uploadLink = document.getElementById('upload-link');
+        const imageUpload = document.getElementById('image-upload');
+
+        let tiles = [];
+        let emptyIndex = 8;
+        let moves = 0;
+        let time = 0;
+        let timerInterval;
+        let isPaused = false;
+        let imageSrc = '';
+
+        uploadLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            imageUpload.click();
+        });
+
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imageSrc = event.target.result;
+                    initPuzzle();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function initPuzzle() {
+            puzzleContainer.innerHTML = '';
+            tiles = [];
+            for (let i = 1; i <= 9; i++) {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                if (i === 9) {
+                    tile.classList.add('empty');
+                } else {
+                    tile.style.backgroundImage = `url(${imageSrc})`;
+                    tile.style.backgroundPosition = `${-((i - 1) % 3) * 100}px ${-Math.floor((i - 1) / 3) * 100}px`;
+                }
+                tile.dataset.index = i - 1;
+                puzzleContainer.appendChild(tile);
+                tiles.push(tile);
+            }
+            emptyIndex = 8;
+            moves = 0;
+            time = 0;
+            movesDisplay.textContent = moves;
+            timeDisplay.textContent = time;
+            clearInterval(timerInterval);
+        }
+
+        function shuffleTiles() {
+            for (let i = 0; i < 100; i++) {
+                const neighbors = getNeighbors(emptyIndex);
+                const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                swapTiles(emptyIndex, randomNeighbor);
+                emptyIndex = randomNeighbor;
+            }
+        }
+
+        function getNeighbors(index) {
+            const neighbors = [];
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            if (row > 0) neighbors.push(index - 3);
+            if (row < 2) neighbors.push(index + 3);
+            if (col > 0) neighbors.push(index - 1);
+            if (col < 2) neighbors.push(index + 1);
+            return neighbors;
+        }
+
+        function swapTiles(index1, index2) {
+            const tile1 = tiles[index1];
+            const tile2 = tiles[index2];
+            const tempBg = tile1.style.backgroundImage;
+            const tempPos = tile1.style.backgroundPosition;
+            tile1.style.backgroundImage = tile2.style.backgroundImage;
+            tile1.style.backgroundPosition = tile2.style.backgroundPosition;
+            tile2.style.backgroundImage = tempBg;
+            tile2.style.backgroundPosition = tempPos;
+            if (tile1.classList.contains('empty')) {
+                tile1.classList.remove('empty');
+                tile2.classList.add('empty');
+            } else if (tile2.classList.contains('empty')) {
+                tile2.classList.remove('empty');
+                tile1.classList.add('empty');
+            }
+        }
+
+        puzzleContainer.addEventListener('click', (e) => {
+            if (isPaused) return;
+            const tile = e.target;
+            if (tile.classList.contains('tile') && !tile.classList.contains('empty')) {
+                const index = parseInt(tile.dataset.index);
+                const neighbors = getNeighbors(emptyIndex);
+                if (neighbors.includes(index)) {
+                    swapTiles(emptyIndex, index);
+                    emptyIndex = index;
+                    moves++;
+                    movesDisplay.textContent = moves;
+                    checkWin();
+                }
+            }
+        });
+
+        function checkWin() {
+            let isWin = true;
+            tiles.forEach((tile, index) => {
+                if (index !== 8) {
+                    const posX = -((index % 3) * 100);
+                    const posY = -(Math.floor(index / 3) * 100);
+                    if (tile.style.backgroundPosition !== `${posX}px ${posY}px`) {
+                        isWin = false;
+                    }
+                }
+            });
+            if (isWin) {
+                clearInterval(timerInterval);
+                alert(`おめでとうございます！${moves}回の移動でクリアしました。`);
+            }
+        }
+
+        startButton.addEventListener('click', () => {
+            if (!imageSrc) {
+                alert('先に画像をアップロードしてください。');
+                return;
+            }
+            initPuzzle();
+            shuffleTiles();
+            moves = 0;
+            time = 0;
+            movesDisplay.textContent = moves;
+            timeDisplay.textContent = time;
+            isPaused = false;
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    time++;
+                    timeDisplay.textContent = time;
+                }
+            }, 1000);
+        });
+
+        pauseButton.addEventListener('click', () => {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? '再開' : 'ポーズ';
+        });
+
+        resetButton.addEventListener('click', () => {
+            initPuzzle();
+            clearInterval(timerInterval);
+        });
+		</script>
+</body>
+
+</html>
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​</body><html>
